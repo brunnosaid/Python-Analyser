@@ -176,9 +176,6 @@ janela = ThemedTk(theme="arc")
 janela.title("Search and Detail")
 janela.geometry("600x400")
 
-# Restante do código da interface do Tkinter
-# ...
-
 # Criação dos widgets
 label = ttk.Label(janela, text="Digite o nome do arquivo/diretório:")
 label.pack()
