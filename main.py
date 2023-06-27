@@ -86,7 +86,8 @@ def find(nome_arquivo, diretorio_atual):
                     # Exibe uma nova janela sem widgets
                     janela_detalhes = ThemedTk(theme="arc")
                     janela_detalhes.title("Detalhes do Arquivo")
-                    janela_detalhes.geometry("400x300")
+                    janela_detalhes.geometry("300x150")
+                    janela_detalhes.resizable(False, False)
 
                     # TELA PARA OS DETALHES DO ARQUIVO
                     detalhes = obter_detalhes_arquivo(full_path)
@@ -173,8 +174,9 @@ def cancel_search():
 janela = ThemedTk(theme="arc")
 
 # Configurações da janela
-janela.title("Search and Detail")
+janela.title("Python Explorer")
 janela.geometry("600x400")
+janela.resizable(False, False)
 
 # Criação dos widgets
 label = ttk.Label(janela, text="Digite o nome do arquivo/diretório:")
@@ -197,7 +199,7 @@ processamento = tk.Text(janela, height=10, width=60)
 processamento.pack()
 
 # Definição dos drives disponíveis
-drives = ["C:/", "D:/", "E:/"]  # Adicione aqui os drives desejados
+drives = ["C:/", "D:/", "E:/", "F:/", "G:/"]
 
 # Criação dos checkboxes para selecionar os drives
 drive_labels = []
