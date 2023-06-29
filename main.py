@@ -6,6 +6,7 @@ import os
 from unidecode import unidecode
 import time
 import getpass
+import pickle
 
 # Variável global para controlar o estado da busca
 busca_em_andamento = False
@@ -47,18 +48,70 @@ def obter_detalhes_arquivo(caminho_arquivo):
     return detalhes_arquivo
 
 
+def import_cache(nome_arquivo):
+    diretorio_cache = "Cache"
+    path = os.path.join(diretorio_cache, "Cache.dat")
+
+    if os.path.isfile(path):
+        with open(path, "rb") as file:
+            dados_cache = pickle.load(file)
+
+        if nome_arquivo in dados_cache:
+            return dados_cache[nome_arquivo]
+    return None
+
+
+def verify_cache():
+    diretorio_cache = "Cache"
+    path = os.path.join(diretorio_cache, "Cache.dat")
+    return os.path.isfile(path)
+
+
 def find(nome_arquivo, diretorio_atual):
     try:
         global busca_em_andamento
+
+        encontrado = False
 
         # Verifica se o botão "Cancelar" foi pressionado
         if not busca_em_andamento:
             return False
 
+        # Verifica se o nome do arquivo esta presente no cache
+        cache_result = import_cache(nome_arquivo)
+        if cache_result is not None and isinstance(cache_result, str):
+            processamento.insert(tk.END, f"Arquivo encontrado: {cache_result}\n")
+            processamento.see(tk.END)
+            processamento.update()
+
+            # Exibe uma nova janela sem widgets
+            janela_detalhes = ThemedTk(theme="arc")
+            janela_detalhes.title("Detalhes do Arquivo (Cached)")
+            janela_detalhes.geometry("300x150")
+            janela_detalhes.resizable(False, False)
+
+            # TELA PARA OS DETALHES DO ARQUIVO
+            detalhes = obter_detalhes_arquivo(cache_result)
+
+            frame = ttk.Frame(janela_detalhes)
+            frame.pack(pady=10)
+
+            for i, (nome, valor) in enumerate(detalhes.items()):
+                label_nome = ttk.Label(frame, text=nome)
+                label_nome.grid(row=i, column=0, sticky="e", padx=5, pady=5)
+
+                label_valor = ttk.Label(frame, text=valor)
+                label_valor.grid(row=i, column=1, sticky="w", padx=5, pady=5)
+
+            janela_detalhes.mainloop()
+
+            return True
+
         if os.path.isdir(diretorio_atual) and unidecode(os.path.basename(diretorio_atual).lower()) == unidecode(
                 nome_arquivo.lower()):
+            encontrado = True
             messagebox.showinfo("Diretório Encontrado!", f"Local Encontrado: {diretorio_atual}")
-            return True
+            return encontrado
 
         # Processamento de Busca
         if os.path.isdir(diretorio_atual):
@@ -79,6 +132,7 @@ def find(nome_arquivo, diretorio_atual):
                     if find(nome_arquivo, full_path):
                         return True
                 elif os.path.isfile(full_path) and item.lower() == nome_arquivo.lower():
+                    encontrado = True
                     processamento.insert(tk.END, f"Arquivo encontrado: {full_path}\n")
                     processamento.see(tk.END)
                     processamento.update()
@@ -104,10 +158,18 @@ def find(nome_arquivo, diretorio_atual):
 
                     janela_detalhes.mainloop()
 
-                    return True
+                    return encontrado
 
         # Caso não encontre nada
-        return False
+        if not encontrado and os.path.isdir(diretorio_atual):
+
+            # Registrar a nova busca no cache apenas se algum path valido foi encontrado
+            cache_result = next((os.path.join(diretorio_atual, item) for item in os.listdir(diretorio_atual)
+                                 if item.lower() == nome_arquivo.lower()), None)
+
+            if cache_result is not None:
+                create_cache({nome_arquivo, cache_result})
+        return encontrado
 
     except PermissionError:
         # Lidar com o erro de permissão negada
@@ -170,49 +232,66 @@ def cancel_search():
     processamento.delete("1.0", tk.END)
 
 
-# Cria a janela principal
-janela = ThemedTk(theme="arc")
+def create_cache(detalhes_arquivo):
+    dados = detalhes_arquivo
+    path = "Cache/Cache.dat"
 
-# Configurações da janela
-janela.title("Python Explorer")
-janela.geometry("600x400")
-janela.resizable(False, False)
+    with open(path, "wb") as file:
+        pickle.dump(dados, file)
 
-# Criação dos widgets
-label = ttk.Label(janela, text="Digite o nome do arquivo/diretório:")
-label.pack()
 
-entrada = ttk.Entry(janela, width=40)
-entrada.pack(pady=10)
+if __name__ == "__main__":
 
-# Criação de um frame para os botões Buscar e Cancelar
-frame_botoes = ttk.Frame(janela)
-frame_botoes.pack(pady=10)
+    cache_disp = verify_cache()
 
-btn_buscar = ttk.Button(frame_botoes, text="Buscar", command=name_file)
-btn_buscar.pack(side=tk.LEFT, padx=5)
+    # Cria a janela principal
+    janela = ThemedTk(theme="arc")
 
-btn_cancelar = ttk.Button(frame_botoes, text="Cancelar", command=cancel_search)
-btn_cancelar.pack(side=tk.LEFT, padx=5)
+    # Configurações da janela
+    janela.title("Python Explorer")
+    janela.geometry("600x500")
+    janela.resizable(False, False)
 
-processamento = tk.Text(janela, height=10, width=60)
-processamento.pack()
+    # Criação dos widgets
+    label = ttk.Label(janela, text="Digite o nome do arquivo/diretório:")
+    label.pack()
 
-# Definição dos drives disponíveis
-drives = ["C:/", "D:/", "E:/", "F:/", "G:/"]
+    entrada = ttk.Entry(janela, width=40)
+    entrada.pack(pady=10)
 
-# Criação dos checkboxes para selecionar os drives
-drive_labels = []
-drive_var = []
-for drive in drives:
-    var = tk.StringVar(value="1")
-    drive_var.append(var)
-    label = ttk.Checkbutton(janela, text=drive, variable=var, onvalue="1", offvalue="")
-    label.pack(anchor=tk.W)
-    drive_labels.append(label)
+    # Criação de um frame para os botões Buscar e Cancelar
+    frame_botoes = ttk.Frame(janela)
+    frame_botoes.pack(pady=10)
 
-# Define a pasta raiz como "Este Computador" (ou "This PC")
-selected_drives = [drive_labels[i]['text'] for i in range(len(drive_labels)) if drive_var[i].get()]
-selected_drives.append("This PC")
+    btn_buscar = ttk.Button(frame_botoes, text="Buscar", command=name_file)
+    btn_buscar.pack(side=tk.LEFT, padx=5)
 
-janela.mainloop()
+    btn_cancelar = ttk.Button(frame_botoes, text="Cancelar", command=cancel_search)
+    btn_cancelar.pack(side=tk.LEFT, padx=5)
+
+    processamento = tk.Text(janela, height=10, width=60)
+    processamento.pack()
+
+    # Rotulo de Status do cache
+    status_cache = ttk.Label(janela, text="Cache: Acessivel" if cache_disp else "Cache: Não Acessivel",
+                             foreground="green" if cache_disp else "red")
+    status_cache.pack(anchor=tk.SE, padx=10, pady=10)
+
+    # Definição dos drives disponíveis
+    drives = ["C:/", "D:/", "E:/", "F:/", "G:/"]
+
+    # Criação dos checkboxes para selecionar os drives
+    drive_labels = []
+    drive_var = []
+    for drive in drives:
+        var = tk.StringVar(value="1")
+        drive_var.append(var)
+        label = ttk.Checkbutton(janela, text=drive, variable=var, onvalue="1", offvalue="")
+        label.pack(anchor=tk.W)
+        drive_labels.append(label)
+
+    # Define a pasta raiz como "Este Computador" (ou "This PC")
+    selected_drives = [drive_labels[i]['text'] for i in range(len(drive_labels)) if drive_var[i].get()]
+    selected_drives.append("This PC")
+
+    janela.mainloop()
